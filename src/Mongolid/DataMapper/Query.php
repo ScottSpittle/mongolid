@@ -1,132 +1,77 @@
 <?php
 namespace Mongolid\Query;
 
-use Mongolid\Model\Model;
 use Mongolid\Connection\Connection;
+use Mongolid\Connection\Pool;
 
-class Builder
+/**
+ * Represents a query being made to the database trought a connection in the
+ * Pool
+ *
+ * @package  Mongolid
+ */
+class Query
 {
-
     /**
-     * MongoClient instance.
-     * @var MongoClient
+     * @var Connection
      */
     protected $connection;
 
     /**
-     * Constructor
-     * @param MongoConnection $connection
+     * @param Pool $connectionPool
      */
-    public function __construct(Connection $connection)
+    public function __construct(Pool $connectionPool)
     {
-        $this->connection = $collection;
+        $this->connection = $connectionPool->getConnection();
     }
 
     /**
      * Performs the save() operation into MongoDB.
      * @return boolean
      */
-    public function save(Model $instance)
+    public function save($collection, $document)
     {
-        if (! $this->canPersistInstance($instance)) {
-            return false;
-        }
-
-        $options = $this->options();
-
-        $result = $this->collection()
-            ->save($instance->sanitizeAttributes(), $options);
+        $result = $this->connection->getRawConnection()
+            ->test->$collection->save($document);
 
         return $this->parseResult($result);
     }
 
     /**
-     * Performs the save() operation into MongoDB.
+     * Performs the update() operation into MongoDB.
      * @return boolean
      */
-    public function update(Model $instance)
+    public function update($collection, $document)
     {
-        if (! $this->canPersistInstance($instance)) {
+        if (! isset($document['_id'])) {
             return false;
         }
 
-        $options = $this->options();
-
-        $result = $this->collection()
-            ->update(
-                ['_id'  => $instance->getId()],
-                ['$set' => $instance->changedAttributes()],
-                $options
-            );
+        $result = $this->connection->getRawConnection()
+            ->test->$collection->update(['_id' => $document['_id']] $document);
 
         return $this->parseResult($result);
     }
 
     /**
-     * Performs the save() operation into MongoDB.
+     * Performs the insert() operation into MongoDB.
      * @return boolean
      */
-    public function delete(Model $instance)
+    public function insert($collection, $document)
     {
-        if (! $this->canPersistInstance($instance)) {
-            return false;
-        }
-
-        $result = $this->collection()
-            ->delete(
-                ['_id'  => $instance->getId()]
-            );
+        $result = $this->connection->getRawConnection()
+            ->test->$collection->insert($document);
 
         return $this->parseResult($result);
     }
 
     /**
-     * Performs the save() operation into MongoDB.
-     * @return boolean
+     * Interprets the MongoDB response to understand if an 'ok' has retured
+     * @param  array   $results
+     * @return boolean Success
      */
-    public function insert(Model $instance)
-    {
-        if (! $this->canPersistInstance($instance)) {
-            return false;
-        }
-
-        $result = $this->collection()
-            ->insert($instance->sanitizeAttributes(), $options);
-
-        return $this->parseResult($result);
-    }
-
-    /**
-     * Returns the MongoCollection object.
-     * @return MongoCollection
-     */
-    protected function collection()
-    {
-        return $this->getConnection()
-            ->collection();
-    }
-
-    /**
-     * Get all options to persist anything at MongoDB.
-     * @return array
-     */
-    protected function options()
-    {
-        return $this->getConnection()->getOptions();
-    }
-
-    public function parseResult(array $results)
+    protected function parseResult(array $results)
     {
         return isset($results['ok']) && $results['ok']?: false;
-    }
-
-    /**
-     * Verifies if this model can be persisted.
-     * @param  Model  $instance
-     * @return boolean
-     */
-    public function canPersistInstance(Model $instance)
-    {
-        return str_len((string)$instance->getCollectionName()) > 0;
     }
 }
